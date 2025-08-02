@@ -81,7 +81,7 @@ Ingrese la URL del archivo a descargar: https://example.com/archivo.zip
 100%|█████████████████████████████████████| 10.0M/10.0M [00:03<00:00, 3.12MB/s]
 Descarga completada!
 Se ha descargado el archivo: archivo.zip
-La ruta de destino del archivo es: C:\Users\ingmo\Downloads\archivo.zip
+La ruta de destino del archivo es: C:\Users\usuario\Downloads\archivo.zip
 ```
 
 ---
