@@ -37,7 +37,7 @@ pip install -r requirements.txt
 2. Ejecuta el script desde la terminal:
 
 ```bash
-python blackzero_downloader.py
+python DownloadFiles.py
 ```
 
 3. Ingresa la URL del archivo que deseas descargar cuando se te solicite.
@@ -87,7 +87,7 @@ archivo.zip: 100%|████████████████████�
 
 ✅ Descarga completada con éxito.
 📄 Archivo: archivo.zip
-📁 Guardado en: C:\Users\ingmo\Downloads\archivo.zip
+📁 Guardado en: C:\Users\<usuario>\Downloads\archivo.zip
 ```
 
 ---
