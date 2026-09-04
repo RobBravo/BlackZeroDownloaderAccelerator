@@ -35,6 +35,22 @@ def test_filename_from_response_supports_rfc5987_filename():
     assert filename_from_response("https://example.test/file.bin", headers) == "café.txt"
 
 
+def test_filename_from_response_supports_rfc5987_filename_with_language():
+    headers = {
+        "Content-Disposition": "attachment; filename*=UTF-8'en'caf%C3%A9.txt"
+    }
+
+    assert filename_from_response("https://example.test/file.bin", headers) == "café.txt"
+
+
+def test_filename_from_response_falls_back_for_invalid_rfc5987_filename():
+    headers = {"Content-Disposition": "attachment; filename*=NO-SUCH-CHARSET'en'file.txt"}
+
+    assert filename_from_response("https://example.test/fallback.txt", headers) == (
+        "fallback.txt"
+    )
+
+
 def test_sanitize_filename_removes_windows_invalid_characters_and_separators():
     sanitized = sanitize_filename(' report<draft>:"final"/\\*.txt ')
 
@@ -89,6 +105,37 @@ def test_finalize_part_atomically_moves_completed_file(tmp_path):
     part.write_bytes(b"complete")
 
     finalize_part(part, destination)
+
+    assert destination.read_bytes() == b"complete"
+    assert not part.exists()
+
+
+def test_finalize_part_preserves_existing_destination_without_overwrite(tmp_path):
+    destination = tmp_path / "downloads" / "report.zip"
+    part = part_path(destination)
+    part.parent.mkdir(parents=True)
+    destination.write_bytes(b"original")
+    part.write_bytes(b"complete")
+
+    try:
+        finalize_part(part, destination)
+    except FileExistsError as error:
+        assert "destination" in str(error).lower()
+    else:
+        raise AssertionError("finalize_part should reject an existing destination")
+
+    assert destination.read_bytes() == b"original"
+    assert part.read_bytes() == b"complete"
+
+
+def test_finalize_part_replaces_existing_destination_only_when_authorized(tmp_path):
+    destination = tmp_path / "downloads" / "report.zip"
+    part = part_path(destination)
+    part.parent.mkdir(parents=True)
+    destination.write_bytes(b"original")
+    part.write_bytes(b"complete")
+
+    finalize_part(part, destination, overwrite=True)
 
     assert destination.read_bytes() == b"complete"
     assert not part.exists()

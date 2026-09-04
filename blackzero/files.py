@@ -6,7 +6,7 @@ import os
 import re
 from pathlib import Path
 from typing import Mapping
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote, unquote_to_bytes, urlsplit
 
 
 _INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f]+')
@@ -62,8 +62,14 @@ def _content_disposition_filename(value: str) -> str | None:
     extended = re.search(r"(?:^|;)\s*filename\*\s*=\s*([^;]+)", value, re.I)
     if extended:
         encoded = extended.group(1).strip().strip('"')
-        _, separator, payload = encoded.partition("''")
-        return unquote(payload if separator else encoded)
+        match = re.fullmatch(r"([^']+)'([^']*)'(.+)", encoded)
+        if match:
+            charset, _, payload = match.groups()
+            try:
+                return unquote_to_bytes(payload).decode(charset)
+            except (LookupError, UnicodeDecodeError):
+                return None
+        return None
 
     regular = re.search(
         r'(?:^|;)\s*filename\s*=\s*(?:"([^"]*)"|([^;]*))', value, re.I
@@ -116,9 +122,20 @@ def part_path(destination: Path) -> Path:
     return destination.with_name(f"{destination.name}.part")
 
 
-def finalize_part(part: Path, destination: Path) -> None:
+def finalize_part(part: Path, destination: Path, overwrite: bool = False) -> None:
     """Atomically move a completed temporary file to its final destination."""
 
+    part = Path(part)
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(Path(part), destination)
+    if overwrite:
+        os.replace(part, destination)
+        return
+
+    try:
+        os.link(part, destination)
+    except FileExistsError as error:
+        raise FileExistsError(
+            f"destination already exists: {destination}"
+        ) from error
+    os.unlink(part)
