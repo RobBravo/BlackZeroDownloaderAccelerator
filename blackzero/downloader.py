@@ -76,6 +76,11 @@ def _total_size(response: requests.Response, existing_size: int, resumed: bool) 
     return None
 
 
+def _content_range_starts_at(response: requests.Response, offset: int) -> bool:
+    content_range = response.headers.get("Content-Range")
+    return content_range is not None and content_range.startswith(f"bytes {offset}-")
+
+
 def _seed_hasher(part: Path, hasher: hashlib._Hash) -> None:
     with part.open("rb") as stream:
         while chunk := stream.read(_CHUNK_SIZE):
@@ -108,10 +113,14 @@ def download(
         temporary = initial_part
 
         with requests.Session() as session:
-            for attempt in range(options.retries + 1):
+            attempt = 0
+            restart_from_zero = False
+            while attempt <= options.retries:
                 headers: dict[str, str] = {}
-                if options.resume and initial_part.exists():
-                    headers["Range"] = f"bytes={initial_part.stat().st_size}-"
+                requested_offset = 0
+                if options.resume and not restart_from_zero and initial_part.exists():
+                    requested_offset = initial_part.stat().st_size
+                    headers["Range"] = f"bytes={requested_offset}-"
 
                 try:
                     with session.get(
@@ -123,6 +132,7 @@ def download(
                         if _is_retryable_status(response.status_code):
                             if attempt < options.retries:
                                 time.sleep(_retry_delay(response, attempt))
+                                attempt += 1
                                 continue
                             raise DownloadError(
                                 f"HTTP {response.status_code} while downloading {url}",
@@ -145,6 +155,13 @@ def download(
                         if (
                             "Range" in headers
                             and response.status_code == 206
+                            and not _content_range_starts_at(response, requested_offset)
+                        ):
+                            restart_from_zero = True
+                            continue
+                        if (
+                            "Range" in headers
+                            and response.status_code == 206
                             and temporary != initial_part
                         ):
                             if not options.keep_partial:
@@ -153,7 +170,7 @@ def download(
                             continue
                         existing_size = temporary.stat().st_size if temporary.exists() else 0
                         resumed = (
-                            options.resume
+                            "Range" in headers
                             and existing_size > 0
                             and response.status_code == 206
                         )
@@ -178,12 +195,12 @@ def download(
                                 if progress is not None:
                                     progress(written, total)
 
-                        finalize_part(temporary, destination, options.overwrite)
                         if checksum is not None and hasher is not None:
                             _, expected = checksum
                             if hasher.hexdigest() != expected:
-                                destination.unlink(missing_ok=True)
+                                temporary.unlink(missing_ok=True)
                                 raise DownloadError("checksum verification failed", "checksum")
+                        finalize_part(temporary, destination, options.overwrite)
 
                         completed = True
                         return DownloadResult(
@@ -196,6 +213,7 @@ def download(
                 except requests.RequestException as error:
                     if attempt < options.retries:
                         time.sleep(_retry_delay(None, attempt))
+                        attempt += 1
                         continue
                     raise DownloadError(
                         f"network request failed while downloading {url}",

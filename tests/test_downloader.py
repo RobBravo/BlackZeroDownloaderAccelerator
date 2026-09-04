@@ -93,6 +93,16 @@ class _Handler(BaseHTTPRequestHandler):
                 self.wfile.write(body)
                 return
 
+        if path == "/wrong-range":
+            if self.headers.get("Range"):
+                self.send_response(206)
+                self.send_header("Content-Range", f"bytes 0-{len(PAYLOAD) - 1}/{len(PAYLOAD)}")
+                self.send_header("Content-Length", str(len(PAYLOAD)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(PAYLOAD)
+                return
+
         if path == "/ignore-range":
             self._send(PAYLOAD)
             return
@@ -328,6 +338,26 @@ def test_download_restarts_when_server_ignores_range_request(tmp_path, http_serv
     assert not part.exists()
 
 
+def test_download_restarts_when_content_range_does_not_match_requested_offset(
+    tmp_path, http_server
+):
+    download, _ = _downloader()
+    server, base_url = http_server
+    destination = tmp_path / "restart.bin"
+    part = part_path(destination)
+    part.write_bytes(PAYLOAD[:100])
+
+    result = download(
+        f"{base_url}/wrong-range",
+        _options(tmp_path, filename=destination.name, resume=True),
+    )
+
+    assert server.ranges == ["bytes=100-", None]
+    assert result.path.read_bytes() == PAYLOAD
+    assert result.resumed is False
+    assert not part.exists()
+
+
 def test_download_verifies_sha256_incrementally(tmp_path, http_server):
     download, _ = _downloader()
     _, base_url = http_server
@@ -354,4 +384,28 @@ def test_download_deletes_completed_file_when_checksum_mismatches(tmp_path, http
 
     assert caught.value.kind == "checksum"
     assert not list(tmp_path.glob("*.bin"))
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_preserves_existing_destination_on_checksum_mismatch_when_overwriting(
+    tmp_path, http_server
+):
+    download, _ = _downloader()
+    _, base_url = http_server
+    destination = tmp_path / "protected.bin"
+    destination.write_bytes(b"existing verified content")
+
+    with pytest.raises(DownloadError, match="checksum") as caught:
+        download(
+            f"{base_url}/known",
+            _options(
+                tmp_path,
+                filename=destination.name,
+                overwrite=True,
+                checksum=f"sha256:{'0' * 64}",
+            ),
+        )
+
+    assert caught.value.kind == "checksum"
+    assert destination.read_bytes() == b"existing verified content"
     assert not list(tmp_path.glob("*.part"))
