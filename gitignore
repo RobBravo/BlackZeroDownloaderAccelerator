@@ -12,6 +12,9 @@ ENV/
 # VS Code settings
 .vscode/
 
+# Agent worktrees
+.worktrees/
+
 # System files
 .DS_Store
 Thumbs.db
