@@ -21,14 +21,18 @@ python -m pip install -r requirements.txt
 La interfaz principal acepta una o más URL:
 
 ```powershell
+blackzero https://example.com/archivo.zip
 python -m blackzero https://example.com/archivo.zip
 python -m blackzero https://example.com/a.zip https://example.com/b.zip -o .\descargas
 ```
 
 ```bash
+blackzero https://example.com/archivo.zip
 python -m blackzero https://example.com/archivo.zip
 python -m blackzero https://example.com/a.zip https://example.com/b.zip -o ./descargas
 ```
+
+El comando `blackzero` queda disponible después de instalar el proyecto con `pip install -e .`.
 
 El destino predeterminado es la carpeta `Downloads` del usuario. Se crea automáticamente. El launcher original sigue funcionando:
 
