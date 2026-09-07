@@ -14,7 +14,6 @@ from blackzero.errors import DownloadError
 from blackzero.files import part_path
 from blackzero.models import DownloadOptions
 
-
 PAYLOAD = b"BlackZero reliable download payload" * 3_000
 PARTIAL_SIZE = 70 * 1024
 CHUNK_SIZE = 64 * 1024
@@ -32,7 +31,7 @@ class _DownloadServer(ThreadingHTTPServer):
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         path = self.path
         self.server.attempts[path] = self.server.attempts.get(path, 0) + 1
         self.server.ranges.append(self.headers.get("Range"))
@@ -93,15 +92,14 @@ class _Handler(BaseHTTPRequestHandler):
                 self.wfile.write(body)
                 return
 
-        if path == "/wrong-range":
-            if self.headers.get("Range"):
-                self.send_response(206)
-                self.send_header("Content-Range", f"bytes 0-{len(PAYLOAD) - 1}/{len(PAYLOAD)}")
-                self.send_header("Content-Length", str(len(PAYLOAD)))
-                self.send_header("Connection", "close")
-                self.end_headers()
-                self.wfile.write(PAYLOAD)
-                return
+        if path == "/wrong-range" and self.headers.get("Range"):
+            self.send_response(206)
+            self.send_header("Content-Range", f"bytes 0-{len(PAYLOAD) - 1}/{len(PAYLOAD)}")
+            self.send_header("Content-Length", str(len(PAYLOAD)))
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(PAYLOAD)
+            return
 
         if path == "/ignore-range":
             self._send(PAYLOAD)

@@ -19,7 +19,6 @@ from .files import (
 )
 from .models import DownloadOptions, DownloadResult
 
-
 _CHUNK_SIZE = 64 * 1024
 _MAX_BACKOFF_SECONDS = 30.0
 

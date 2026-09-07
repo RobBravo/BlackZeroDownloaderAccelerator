@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 from urllib.parse import unquote, unquote_to_bytes, urlsplit
-
 
 _INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f]+')
 _RESERVED_NAMES = {
@@ -59,7 +58,7 @@ def _header_value(headers: Mapping[str, str], name: str) -> str | None:
 
 
 def _content_disposition_filename(value: str) -> str | None:
-    extended = re.search(r"(?:^|;)\s*filename\*\s*=\s*([^;]+)", value, re.I)
+    extended = re.search(r"(?:^|;)\s*filename\*\s*=\s*([^;]+)", value, re.IGNORECASE)
     if extended:
         encoded = extended.group(1).strip().strip('"')
         match = re.fullmatch(r"([^']+)'([^']*)'(.+)", encoded)
@@ -72,7 +71,7 @@ def _content_disposition_filename(value: str) -> str | None:
         return None
 
     regular = re.search(
-        r'(?:^|;)\s*filename\s*=\s*(?:"([^"]*)"|([^;]*))', value, re.I
+        r'(?:^|;)\s*filename\s*=\s*(?:"([^"]*)"|([^;]*))', value, re.IGNORECASE
     )
     if regular:
         return (regular.group(1) or regular.group(2)).strip()
