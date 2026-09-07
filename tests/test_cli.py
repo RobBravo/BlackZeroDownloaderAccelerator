@@ -148,3 +148,10 @@ def test_main_returns_two_for_invalid_cli_input(capsys):
     assert main(["not-a-url"]) == 2
     captured = capsys.readouterr()
     assert "URL" in captured.err or "url" in captured.err
+
+
+def test_main_prints_version_and_returns_zero(capsys):
+    assert main(["--version"]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.out.strip() == "0.1.0"

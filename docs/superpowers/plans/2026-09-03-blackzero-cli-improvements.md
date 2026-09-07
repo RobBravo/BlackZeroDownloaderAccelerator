@@ -1,5 +1,7 @@
 # BlackZero CLI Improvements Implementation Plan
 
+> Estado: completado. Todas las tareas del plan fueron implementadas y validadas en `main`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Convert BlackZero into a reliable, scriptable HTTP/HTTPS terminal downloader while preserving the current interactive command.

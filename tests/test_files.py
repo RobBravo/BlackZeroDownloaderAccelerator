@@ -29,6 +29,14 @@ def test_filename_from_response_prefers_content_disposition_filename():
     )
 
 
+def test_filename_from_response_sanitizes_malicious_header_filename():
+    headers = {"Content-Disposition": 'attachment; filename="..\\secret/CON.txt"'}
+
+    assert filename_from_response("https://example.test/file.bin", headers) == (
+        ".._secret_CON.txt"
+    )
+
+
 def test_filename_from_response_supports_rfc5987_filename():
     headers = {"Content-Disposition": "attachment; filename*=UTF-8''caf%C3%A9.txt"}
 
