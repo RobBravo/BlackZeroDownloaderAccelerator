@@ -1,120 +1,96 @@
 # 🛰️ Acelerador de Descargas BlackZero
 
-**BlackZero** es un script robusto en Python que permite descargar archivos desde una URL con barra de progreso en tiempo real. Ideal para automatizar descargas de forma simple, visual y eficiente.
+BlackZero es un descargador HTTP/HTTPS para terminal, seguro para automatización y compatible con el flujo interactivo original.
 
----
+## Instalación
 
-## 🧠 Características
-
-- Solicita una URL de descarga al usuario.
-- Valida que la URL sea válida (`http` o `https`).
-- Extrae automáticamente el nombre del archivo o asigna uno genérico si es necesario.
-- Muestra una barra de progreso interactiva con `tqdm`.
-- Descarga el archivo en la carpeta **Descargas** del usuario, sin sobrescribir archivos existentes.
-- Informa claramente el estado de la descarga y su ubicación final.
-- Maneja errores de conexión, URLs inválidas o archivos sin tamaño definido.
-
----
-
-## 🛠️ Requisitos
-
-- Python 3.x
-- Módulos:
-  - `requests`
-  - `tqdm`
-
-Instala las dependencias con:
+Requiere Python 3.10 o posterior.
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -e .
 ```
 
----
+También puede instalarse únicamente desde `requirements.txt`:
 
-## 🚀 Cómo usar
+```bash
+python -m pip install -r requirements.txt
+```
 
-1. Asegúrate de tener Python 3 instalado.
-2. Ejecuta el script desde la terminal:
+## Uso
+
+La interfaz principal acepta una o más URL:
+
+```powershell
+python -m blackzero https://example.com/archivo.zip
+python -m blackzero https://example.com/a.zip https://example.com/b.zip -o .\descargas
+```
+
+```bash
+python -m blackzero https://example.com/archivo.zip
+python -m blackzero https://example.com/a.zip https://example.com/b.zip -o ./descargas
+```
+
+El destino predeterminado es la carpeta `Downloads` del usuario. Se crea automáticamente. El launcher original sigue funcionando:
 
 ```bash
 python DownloadFiles.py
+python DownloadFiles.py https://example.com/archivo.zip
 ```
 
-3. Ingresa la URL del archivo que deseas descargar cuando se te solicite.
+En el primer caso se muestra el banner y se solicita una URL; en el segundo no se solicita entrada.
 
----
+### Opciones
 
-## 📁 Ruta de descarga
+| Opción | Descripción |
+| --- | --- |
+| `-o, --output-dir PATH` | Carpeta de destino. |
+| `-n, --filename NAME` | Nombre explícito; solo con una URL. |
+| `--overwrite` | Reemplaza el archivo existente. Por defecto se añade un sufijo seguro. |
+| `--resume` | Reanuda desde `NAME.part` cuando el servidor acepta `Range`. |
+| `--retries N` | Reintentos para fallos transitorios; predeterminado: `3`. |
+| `--timeout SECONDS` | Tiempo de conexión y lectura; predeterminado: `30`. |
+| `--checksum sha256:HEX` | Verifica SHA-256 y elimina el archivo si no coincide. |
+| `-q, --quiet` | Oculta progreso y mensajes informativos; conserva errores en `stderr`. |
+| `--keep-partial` | Conserva el archivo `.part` tras un fallo. |
+| `--version`, `--help` | Muestra versión o ayuda. |
 
-El archivo se guarda automáticamente en la carpeta de **Descargas** de tu usuario:
+Ejemplos:
 
-```plaintext
-Windows: C:\Users\<tu_usuario>\Downloads\
-Linux/macOS: /home/<usuario>/Downloads/
+```powershell
+python -m blackzero https://example.com/app.zip -o .\build -n app.zip --resume --checksum sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+python -m blackzero https://example.com/a.zip -q --retries 5 --timeout 10
 ```
 
-⚠️ Si ya existe un archivo con el mismo nombre, se renombrará automáticamente para evitar sobrescribirlo.
-
----
-
-## 🔍 Estructura del código
-
-### Funciones principales
-
-#### `es_url_valida(url)`
-Valida que la URL comience con `http` o `https`.
-
-#### `generar_nombre_unico(ruta, nombre)`
-Evita sobrescribir archivos renombrándolos automáticamente si ya existen.
-
-#### `descargar_archivo(url)`
-- Verifica que la URL sea válida.
-- Descarga el archivo con barra de progreso.
-- Maneja archivos sin `content-length`.
-- Muestra información clara de éxito o errores.
-
----
-
-## 🧱 Ejemplo de uso
-
-```
-🚀 Acelerador de descargas BlackZero
-#####################################
-
-🔗 Ingrese la URL del archivo a descargar: https://example.com/archivo.zip
-
-archivo.zip: 100%|██████████████████████| 10.0M/10.0M [00:03<00:00, 3.12MB/s]
-
-✅ Descarga completada con éxito.
-📄 Archivo: archivo.zip
-📁 Guardado en: C:\Users\<usuario>\Downloads\archivo.zip
+```bash
+python -m blackzero https://example.com/app.zip -o ./build -n app.zip --resume
+python -m blackzero https://example.com/a.zip -q --retries 5 --timeout 10
 ```
 
----
+## Seguridad y comportamiento
 
-## ❌ Manejo de errores
+- Solo se aceptan URL `http` y `https` con hostname.
+- Los nombres provenientes de la URL o `Content-Disposition` se sanitizan: se eliminan separadores, caracteres de control, caracteres inválidos de Windows y nombres reservados.
+- Las descargas se escriben primero en `archivo.ext.part` y se renombran atómicamente al completarse.
+- Los archivos existentes no se reemplazan salvo con `--overwrite`; sin esa opción se usa `archivo (1).ext`, etc.
+- Los `.part` se eliminan tras errores normales. Use `--keep-partial` para conservarlos.
+- `--resume` requiere que el servidor acepte `Range` y responda con `206`; si no, se inicia una descarga nueva.
+- La ausencia de `Content-Length` no impide descargar, pero limita la información de progreso.
 
-- URLs inválidas
-- Archivos inaccesibles
-- Problemas de red
-- Servidores sin tamaño definido
+## Códigos de salida
 
-Ejemplo:
+- `0`: todas las descargas terminaron correctamente.
+- `1`: falló una descarga o la verificación de checksum.
+- `2`: entrada del CLI inválida, por ejemplo una URL no válida o una opción incompatible.
 
+## Desarrollo
+
+```bash
+python -m pip install -e ".[dev]"
+pytest -q
 ```
-❌ Error durante la descarga: HTTPSConnectionPool(host='example.com', port=443): Max retries exceeded...
-```
 
----
+Las pruebas usan un servidor HTTP local y no dependen de red externa.
 
-## 🧯 Consideraciones
-
-- Multiplataforma (Windows, macOS, Linux).
-- No requiere argumentos ni configuración previa.
-- Perfecto para integrarse en scripts de automatización.
-
----
-
-## ⚖️ Licencia
+## Licencia
 
 MIT - Libre para usar, modificar y distribuir.

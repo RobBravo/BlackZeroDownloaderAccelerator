@@ -63,7 +63,7 @@ class DownloadResult:
 - `filename_from_response(url: str, headers: Mapping[str, str]) -> str`.
 - `choose_destination(directory: Path, filename: str, overwrite: bool) -> Path`.
 - `part_path(destination: Path) -> Path`.
-- `finalize_part(part: Path, destination: Path) -> None`.
+- `finalize_part(part: Path, destination: Path, overwrite: bool = False) -> None`.
 
 - [ ] **Step 1: Write failing tests** for URL fallback names, `Content-Disposition`, invalid Windows characters, reserved names, collisions, overwrite, and atomic rename.
 - [ ] **Step 2: Run** `pytest tests/test_files.py -q`; confirm failures.
